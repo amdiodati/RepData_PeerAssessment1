@@ -1,25 +1,210 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Course Project 1"
+author: "Andrew Diodati"
+date: "June 5, 2016"
+output: html_document
 ---
 
+This markdown file contains all of the R code and corresponding output for Project 1 in the Reproducible Research Coursera class offered by John Hopkins University. The code and output is presented in order shown in the rubric. Original code was one long function which is given in an appendix. This function had to be broken up for use in the R markdown file.
 
-## Loading and preprocessing the data
+###Preparing the Data:
+```{r, echo=TRUE}
+  library(package = "lattice")
+  
+  # read in the data
+  data <- read.csv("activity.csv")
+  
+  # format the date column into a Date
+  data$date <- strptime(data$date, format="%Y-%m-%d")
+  data$date <- as.Date(data$date)
+```
 
+###Total Number of steps taken per day:
+```{r, echo=TRUE}
+  # get the sums of steps for each date
+  sums <- tapply(data$steps, data$date, sum, na.rm = TRUE)
+  sums
+```
 
+###Histogram of the Steps per Day:
+```{r, echo=TRUE}
+  # graph the sums
+  hist(sums, xlab="Steps per Day", main="Histogram of Total Steps per Day")
+```
 
-## What is mean total number of steps taken per day?
+###Average Daily Activity Pattern:
+```{r, echo=TRUE}
+ # mean and median of sums
+  means <- mean(sums)
+  means
+  medians <- median(sums)
+  medians
+  
+  # plot the time series of the 5-minute interval and the average steps taken, avereaged across all days
+  interval_means <- tapply(data$steps, data$interval, mean, na.rm = TRUE)
+  plot(row.names(interval_means), interval_means, type = "l", ylab="Steps", xlab="Intervals")
+```
 
+###Max Interval:
+```{r, echo=TRUE}
+  # find the max interval
+  max_interval <- interval_means[max(interval_means)]
+  max_interval
+```
 
+###Calculate Number of NAs:
+```{r, echo=TRUE}
+  # count the NAs
+  na_count <- sum(is.na(data))
+  na_count
+```
 
-## What is the average daily activity pattern?
+###Fill NA Strategy with Mean of All Steps:
+```{r, echo=TRUE}
+  # calculate the total mean for all steps (to replaces NAs later)
+  total_mean <- mean(data$steps, na.rm = TRUE)
+```
 
+###Create a New Dataset with NAs Fixed:
+```{r, echo=TRUE}
+  # create a copy of the data but with the NAs replaced
+  new_data <- data
+  new_data[is.na(new_data)] <- total_mean
+```
 
+###Histogram of Total Steps (NAs Fixed):
+```{r, echo=TRUE}
+  # sums, mean, medians, and histogram for  the new data
+  new_sums <- tapply(new_data$steps, new_data$date, sum, na.rm = TRUE)
+  new_sums
+  hist(new_sums, xlab="Steps per Day", main="Histogram of Total teps per Day (NAs Fixed)")
+```
 
-## Imputing missing values
+###Calculate Mean & Median of New Dataset:
+```{r, echo=TRUE}
+  new_means <- mean(new_sums)
+  new_means
+  new_medians <- median(new_sums)
+  new_medians
+```
 
+**Note:** The above mean and median do indeed differ from the old ones:
+```{r, echo=TRUE}
+  means
+  medians
+```
 
+Adjusting for missing values brought the mean and median closer together and made the histogram more normally distributed.
 
-## Are there differences in activity patterns between weekdays and weekends?
+###Create Factor Variable for Weekday/Weekend:
+```{r, echo=TRUE}
+  # get the weekdays
+  days <- weekdays(new_data$date)
+  
+  # identify weekend dates
+  weekend <- vector()
+  for (i in 1:nrow(new_data)) {
+    if (days[i] == "Saturday" || days[i] == "Sunday") {
+      weekend[i] <- "Weekend"
+    } 
+    else {
+      weekend[i] <- "Weekday"
+    }
+  }
+  # create a new column for weekend or not
+  new_data$weekend <- weekend
+  new_data$weekend <- factor(new_data$weekend)
+```
+
+###Panel Plot for Intervals and Average Steps Across all Weekdays/Weekends:
+```{r, echo=TRUE}
+  # aggregate (as opposed to using tapply like previously; just for fun)
+  steps <- aggregate(steps ~ interval + weekend, data = new_data, mean)
+  names(steps) <- c("interval", "weekend", "steps")
+  
+  # plot by weekend or weekday
+  xyplot(steps ~ interval | weekend, steps, type = "l", layout = c(1, 2), 
+         xlab = "Interval", ylab = "Number of steps")
+```
+
+###Code Appendix:
+```{r}
+my_function <- function() {
+  #install the lattice package
+  library(package = "lattice")
+  
+  # read in the data
+  data <- read.csv("activity.csv")
+  
+  # remove NAs
+  ## data <- data[complete.cases(data), ]
+  
+  # format the date column into a Date
+  data$date <- strptime(data$date, format="%Y-%m-%d")
+  data$date <- as.Date(data$date)
+  
+  # get the sums of steps for each date
+  sums <- tapply(data$steps, data$date, sum, na.rm = TRUE)
+  
+  # graph the sums
+  hist(sums)
+  
+  # mean and median of sums
+  means <- mean(sums)
+  means
+  medians <- median(sums)
+  medians
+  
+  # plot the time series of the 5-minute interval and the average steps taken, avereaged across all days
+  interval_means <- tapply(data$steps, data$interval, mean, na.rm = TRUE)
+  plot(row.names(interval_means), interval_means, type = "l")
+  
+  # find the max interval
+  max_interval <- interval_means[max(interval_means)]
+  
+  # count the NAs
+  na_count <- sum(is.na(data))
+  na_count
+  
+  # calculate the total mean for all steps (to replaces NAs later)
+  total_mean <- mean(data$steps, na.rm = TRUE)
+  
+  # create a copy of the data but with the NAs replaced
+  new_data <- data
+  new_data[is.na(new_data)] <- total_mean
+  
+  # sums, mean, medians, and histogram for  the new data
+  new_sums <- tapply(new_data$steps, new_data$date, sum, na.rm = TRUE)
+  new_sums
+  hist(new_sums)
+  new_means <- mean(new_sums)
+  new_means
+  new_medians <- median(new_sums)
+  new_medians
+  
+  # get the weekdays
+  days <- weekdays(new_data$date)
+  
+  # identify weekend dates
+  weekend <- vector()
+  for (i in 1:nrow(new_data)) {
+    if (days[i] == "Saturday" || days[i] == "Sunday") {
+      weekend[i] <- "Weekend"
+    } 
+    else {
+      weekend[i] <- "Weekday"
+    }
+  }
+  # create a new column for weekend or not
+  new_data$weekend <- weekend
+  new_data$weekend <- factor(new_data$weekend)
+  
+  # aggregate (as opposed to using tapply like previously; just for fun)
+  steps <- aggregate(steps ~ interval + weekend, data = new_data, mean)
+  names(steps) <- c("interval", "weekend", "steps")
+  
+  # plot by weekend or weekday
+  xyplot(steps ~ interval | weekend, steps, type = "l", layout = c(1, 2), 
+         xlab = "Interval", ylab = "Number of steps")
+}
+```
